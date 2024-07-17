@@ -10,10 +10,11 @@
  *
  */
 use uo;
-
+include "charactersheet";
 
 program core_skillWin(mobile)
-	SendSkillWindow(mobile, mobile);
-
+  character_sheet(mobile);
+	// SendSkillWindow(mobile, mobile);
+  // SendSysMessage(mobile, "Custom Skill Gump goes here" );
 	return 0;
 endprogram

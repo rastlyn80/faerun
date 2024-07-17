@@ -1,0 +1,10 @@
+* D:\Faerun\scripts\misc\skillwin.src 
+This is where the skill gump happens. 
+
+* D:\Faerun\scripts\misc\oncreate.src 
+This is where the character creation happens.
+There's a critical loop on creation that might need to be addressed at some point.
+Implement racial traits in the AssignRaceModifiers (resistance for Dragonborn, Dwarven toughness, etc)
+
+* Check if SYSEVENT_SPEECH is fired when the character is squelched.
+That could be an amazing way of controlling languages, etc.

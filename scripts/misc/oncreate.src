@@ -42,5 +42,10 @@ program oncreate(who, skillids, unused profession)
   endif
 
   CP_GetStorageContainerForMobile( who, CP_DEFAULT_AREA, CP_CREATE );
-  CreateStartingEquipment(who, skillids);
+  CreateStartingEquipment(who, skillids); // Will need modify
+
+  // FAERUN MODIFICATIONS
+  Sleep(2);
+
+  MoveObjectToLocation(who, 1327 , 1624 , 52 , who.realm);
 endprogram

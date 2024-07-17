@@ -1,0 +1,29 @@
+use uo;
+use os;
+use basic;
+
+include "include/sysEvent";
+
+program languages(who);
+  var stop := 0;
+  RegisterForSpeechEvents(who, 1);
+  EnableEvents(SYSEVENT_SPEECH,1);
+  SendSysMessage(who, "Started");
+  var ev;
+
+  while(stop!=1)
+    ev := os::wait_for_event( 3 );
+    if(ev)
+      if (ev.type==SYSEVENT_SPEECH)
+        if(ev.text == "stop")
+          stop := 1;
+          SendSysMessage(who, "Stopped");
+          break;
+        endif
+        PrintTextAbove(ev.source, ev.source.name+": " + ev.text);
+      endif
+    endif
+  endwhile
+  SendSysMessage(who, "Stopped");
+
+endprogram

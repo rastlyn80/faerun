@@ -1,0 +1,1525 @@
+use uo;
+use os;
+
+include ":gumps:gumps";
+include "include/faerun";
+
+var baseValues := dictionary{ "STR" -> 0, "DEX" -> 0, "CON" -> 0, "INT" -> 0, "WIS" -> 0, "CHA" -> 0 };
+var totalValues := dictionary{ "STR" -> 0, "DEX" -> 0, "CON" -> 0, "INT" -> 0, "WIS" -> 0, "CHA" -> 0 };
+var raceModifiers := dictionary{};
+var otherModifiers := dictionary{ "STR" -> 0, "DEX" -> 0, "CON" -> 0, "INT" -> 0, "WIS" -> 0, "CHA" -> 0 };
+var finalModifiers := dictionary{ "STR" -> 0, "DEX" -> 0, "CON" -> 0, "INT" -> 0, "WIS" -> 0, "CHA" -> 0 };
+// Point cost table
+var pointCosts := dictionary{ 8 -> 0, 9 -> 1, 10 -> 2, 11 -> 3, 12 -> 4, 13 -> 5, 14 -> 7, 15 -> 9 };
+var maxPoints := 27; // Total points available for distribution
+
+var specialMessage := "";
+var charSkills := dictionary{};
+var charLanguages := dictionary{};
+
+var is_complete := 0;
+
+var modifierTable := dictionary{ 
+	1 -> "-5", 
+	2 -> "-4", 
+	3 -> "-4", 
+	4 -> "-3", 
+	5 -> "-3", 
+	6 -> "-2", 
+	7 -> "-2", 
+	8 -> "-1",
+	9 -> "-1",
+	10 -> "+0",
+	11 -> "+0",
+	12 -> "+1",
+  13 -> "+1",
+  14 -> "+2",
+  15 -> "+2",	 
+	16 -> "+3",	
+	17 -> "+3",	
+	18 -> "+4",	
+	19 -> "+4",	
+	20 -> "+5",	
+	21 -> "+5",	
+	22 -> "+6",	
+	23 -> "+6",	
+	24 -> "+7",	
+	25 -> "+7",	
+	26 -> "+8",	
+	27 -> "+8",	
+	28 -> "+9",	
+	29 -> "+9",	
+	30 -> "10"
+	};
+
+function initializeSkills(who)
+	foreach skill in SKILLS
+  	  charSkills[skill] := 0;
+	endforeach
+  // ADD RACE MODS
+	// ADD EXTRA SKILLS
+
+	SetObjProperty(who, "skills", charSkills);
+endfunction
+
+function initializeLanguages(who)
+	foreach language in LANGUAGES
+  	  charLanguages[language] := 0;
+	endforeach
+  // ADD RACE LANGUAGES
+	// ADD EXTRA LANGUAGES
+
+	SetObjProperty(who, "languages", charLanguages);
+endfunction
+
+function AssignRaceModifiers(race, subrace := 0) // ASSIGN TRAITS HERE
+
+  raceModifiers := dictionary{ "STR" -> 0, "DEX" -> 0, "CON" -> 0, "INT" -> 0, "WIS" -> 0, "CHA" -> 0 };
+
+	case(race)
+		"Dragonborn":
+			raceModifiers["STR"] := 2;
+			raceModifiers["CHA"] := 1;
+			/*		
+			case(subrace):
+				"Black":
+					// add resistange and breath weapon here
+					break;
+				// etc...
+			endcase
+		*/
+			break;
+
+		"Dwarf":
+			raceModifiers["CON"] := 2;
+			case(subrace)
+				"Hill Dwarf":
+					raceModifiers["WIS"] := 1;
+					// DWARVEN TOUGHNESS
+					break;
+
+				"Mountain Dwarf":
+					raceModifiers["STR"] := 2;
+					// Proficiency with light and medium armor
+					break;
+			endcase
+			break;			
+
+		"Elf":
+			raceModifiers["DEX"] := 2;
+			case(subrace)
+				"High Elf":
+					raceModifiers["INT"] := 1;
+					// Elf weapon training, cantrip, language
+					break;
+
+				"Wood Elf":
+					raceModifiers["WIS"] := 1;
+					// Proficiency with longsword, shortsword, shortbow, longbow, faster speed, mask of the wild
+					break;
+			endcase
+			break;		
+				
+
+		"Gnome":
+			raceModifiers["INT"] := 2;
+
+			case(subrace)
+				"Deep Gnome":
+					raceModifiers["DEX"] := 1;
+					// Superior Darkvision, Stone Camouflage, languages
+					break;
+
+				"Rock Gnome":
+					raceModifiers["CON"] := 1;
+					// Artificer Lore, Tinker
+					break;
+			endcase
+			break;
+
+		"Half-Elf":
+			raceModifiers["STR"] := 2;
+			break;	
+
+		"Halfling":
+			raceModifiers["DEX"] := 2;
+			case(subrace)
+				"Lightfoot Halfling":
+					raceModifiers["CHA"] := 1;
+					// Naturally stealthy
+					break;
+
+				"Stout Halfling":
+					raceModifiers["CON"] := 1;
+					// Stout resilience
+					break;
+			endcase
+			break;
+
+		"Half-Orc":
+			raceModifiers["STR"] := 2;
+			raceModifiers["CON"] := 1;
+			break;
+
+		"Human":
+			raceModifiers["STR"] := 1;
+			raceModifiers["DEX"] := 1;
+			raceModifiers["CON"] := 1;
+			raceModifiers["INT"] := 1;
+			raceModifiers["WIS"] := 1;
+			raceModifiers["CHA"] := 1;
+			break;
+
+		"Tiefling":
+			raceModifiers["CHA"] := 2;
+			raceModifiers["INT"] := 1;
+			break;
+	endcase
+endfunction
+
+function DistributeBaseValues(class)
+  	case(class)
+      	"Barbarian":
+            baseValues["STR"] := 15;
+            baseValues["DEX"] := 14;
+            baseValues["CON"] := 13;
+            baseValues["INT"] := 8;
+            baseValues["WIS"] := 12;
+            baseValues["CHA"] := 10;
+            break;
+      	"Bard":
+            baseValues["STR"] := 8;
+            baseValues["DEX"] := 14;
+            baseValues["CON"] := 13;
+            baseValues["INT"] := 10;
+            baseValues["WIS"] := 12;
+            baseValues["CHA"] := 15;
+            break;
+      	"Cleric":
+            baseValues["STR"] := 10;
+            baseValues["DEX"] := 8;
+            baseValues["CON"] := 13;
+            baseValues["INT"] := 10;
+            baseValues["WIS"] := 15;
+            baseValues["CHA"] := 14;
+            break;
+      	"Druid":
+            baseValues["STR"] := 8;
+            baseValues["DEX"] := 14;
+            baseValues["CON"] := 13;
+            baseValues["INT"] := 10;
+            baseValues["WIS"] := 15;
+            baseValues["CHA"] := 12;
+            break;
+      	"Fighter":
+            baseValues["STR"] := 15;
+            baseValues["DEX"] := 14;
+            baseValues["CON"] := 13;
+            baseValues["INT"] := 8;
+            baseValues["WIS"] := 12;
+            baseValues["CHA"] := 10;
+            break;
+      	"Monk":
+            baseValues["STR"] := 10;
+            baseValues["DEX"] := 15;
+            baseValues["CON"] := 13;
+            baseValues["INT"] := 8;
+            baseValues["WIS"] := 14;
+            baseValues["CHA"] := 12;
+            break;
+      	"Paladin":
+            baseValues["STR"] := 15;
+            baseValues["DEX"] := 8;
+            baseValues["CON"] := 13;
+            baseValues["INT"] := 10;
+            baseValues["WIS"] := 12;
+            baseValues["CHA"] := 14;
+            break;
+      	"Ranger":
+            baseValues["STR"] := 8;
+            baseValues["DEX"] := 15;
+            baseValues["CON"] := 13;
+            baseValues["INT"] := 10;
+            baseValues["WIS"] := 14;
+            baseValues["CHA"] := 12;
+            break;
+      	"Rogue":
+            baseValues["STR"] := 8;
+            baseValues["DEX"] := 15;
+            baseValues["CON"] := 13;
+            baseValues["INT"] := 14;
+            baseValues["WIS"] := 12;
+            baseValues["CHA"] := 10;
+            break;
+      	"Sorcerer":
+            baseValues["STR"] := 8;
+            baseValues["DEX"] := 14;
+            baseValues["CON"] := 13;
+            baseValues["INT"] := 10;
+            baseValues["WIS"] := 12;
+            baseValues["CHA"] := 15;
+            break;
+      	"Warlock":
+            baseValues["STR"] := 8;
+            baseValues["DEX"] := 14;
+            baseValues["CON"] := 13;
+            baseValues["INT"] := 12;
+            baseValues["WIS"] := 10;
+            baseValues["CHA"] := 15;
+            break;
+      	"Wizard":
+            baseValues["STR"] := 8;
+            baseValues["DEX"] := 14;
+            baseValues["CON"] := 13;
+            baseValues["INT"] := 15;
+            baseValues["WIS"] := 12;
+            baseValues["CHA"] := 10;
+            break;
+        default:
+            // Print("Unknown class: " + class);
+            break;
+    endcase
+		RecalculateTotals();
+endfunction
+
+// Recalculate total values based on base values and modifiers
+function RecalculateTotals()
+    foreach stat in (baseValues.keys())
+        totalValues[stat] := baseValues[stat] + raceModifiers[stat] + otherModifiers[stat];
+				finalModifiers[stat] := modifierTable[totalValues[stat]];
+    endforeach
+endfunction
+
+// Calculate remaining points
+function CalculateRemainingPoints()
+    var usedPoints := 0;
+    foreach stat in (baseValues.keys())
+        usedPoints += pointCosts[baseValues[stat]];
+    endforeach
+
+    return maxPoints - usedPoints;
+endfunction
+
+function value_to_stat(value)
+	case(value)
+		1:
+			return("STR");
+			break;
+
+		2:
+			return("DEX");
+			break;
+
+		3:
+			return("CON");
+			break;
+
+		4:
+			return("INT");
+			break;
+
+		5:
+			return("WIS");
+			break;
+
+		6:
+			return("CHA");
+			break;
+	endcase
+			
+endfunction
+
+// Adjust ability score
+function AdjustAbilityScore(vals, delta )
+		var stat := value_to_stat(vals);
+    var newValue := baseValues[stat] + delta;
+    if (newValue >= 8 && newValue <= 15)
+        var currentPoints := CalculateRemainingPoints();
+        var costDifference := pointCosts[newValue] - pointCosts[baseValues[stat]];
+        if (costDifference <= currentPoints)
+            baseValues[stat] := newValue;
+            RecalculateTotals();
+            // specialMessage := "Adjusted " + stat + " to " + newValue;
+        else
+            specialMessage := "Not enough points to increase " + stat;
+        endif
+    else
+        specialMessage := stat + " must be between 8 and 15.";
+    endif
+endfunction
+
+function character_race_gump( who )
+var gflayout := {
+		"noclose",   // close by right-click forbidden
+		"nodispose", // you did not want to hit esc, did you? 
+		// "nomove",    // you musn't move the window around
+		"page 0",    // we initialize the first page which is the background
+
+    "gumppic 210, 100, 11265", // the background image 1
+    "gumppic 410, 100, 11264", // the background image 2
+    "gumppic 1080, 100, 11265", // the background image 3
+    "htmlgump 633 110 300 30 0 0 0", // welcome adventurer
+    "resizepic 530 240 9300 429 395", // the paper background
+    "gumppic 1100, 130, 1634", // the side image 1
+    "gumppic 230, 130, 1632", //the side image 2
+		"text 682 165 5 1", // Choose your fate
+
+    "page 1",
+		"text 686 250 36 2", // Choose your Race
+		"text 610 305 56 3", // Dragonborn
+		"text 610 335 56 4", // Dwarf
+		"text 610 365 56 5", // Elf
+		"text 610 395 56 6", // Gnome
+		"text 610 425 56 7", // Half-Elf
+		"text 610 455 56 8", // Half-Orc
+		"text 610 485 56 9", // Halfling
+		"text 610 515 56 10", // Human
+		"text 610 545 56 11", // Tiefling
+    "resizepic 770 360 1460 150 152", // the race image background
+    "gumppic 790, 380, 2731", // the race image
+		"button 860 600 12009 12010 1 0 1", // the next page button
+
+    "radio 580 305 210 211 1 1", // Dragonborn
+    "radio 580 335 210 211 0 2", // Dwarf
+    "radio 580 365 210 211 0 3", // Elf
+    "radio 580 395 210 211 0 4", // Gnome
+    "radio 580 425 210 211 0 5", // Half-Elf
+    "radio 580 455 210 211 0 6", // Half-Orc
+    "radio 580 485 210 211 0 7", // Halfling
+    "radio 580 515 210 211 0 8", // Human
+    "radio 580 545 210 211 0 9"  // Tiefling
+
+		};
+
+
+  var gfdata := {
+    "<BASEFONT COLOR=\"#FFFFFF\" SIZE=\"5\">WELCOME ADVENTURER",
+    "CHOOSE YOUR FATE",
+		"Choose your Race",
+		"Dragonborn",
+		"Dwarf",
+		"Elf",
+		"Gnome",
+		"Half-Elf",
+		"Half-Orc",
+		"Halfling",
+		"Human",
+		"Tiefling"
+		};
+
+	var res := SendDialogGump( who, gflayout, gfdata);
+	var race;
+
+  foreach key in (res.keys)
+		if (key != 0 )
+						race := key;
+		endif
+  endforeach
+
+	case(race)
+		1: 
+			race := "Dragonborn";
+			break;
+		2: 
+			race := "Dwarf";
+			break;
+		3: 
+			race := "Elf";
+			break;
+		4: 
+			race := "Gnome";
+			break;
+		5: 
+			race := "Half-Elf";
+			break;
+		6: 
+			race := "Half-Orc";
+			break;
+		7: 
+			race := "Halfling";
+			break;
+		8: 
+			race := "Human";
+			break;
+		9: 
+			race := "Tiefling";
+			break;
+
+	endcase
+
+		if (res[0] == 1)
+			SetObjProperty(who, "race", race);
+			case(race)
+				"Dragonborn":
+					character_draconic_gump( who );
+					break;
+				
+				"Dwarf":
+					character_dwarf_gump( who );
+					break;
+
+				"Elf":
+					character_elf_gump( who );
+					break;
+
+				"Gnome":
+					character_gnome_gump( who );
+					break;
+
+				"Halfling":
+					character_halfling_gump( who );
+					break;
+
+				default:
+					AssignRaceModifiers(race);
+					SetObjProperty(who, "race_mods", raceModifiers);
+					SetObjProperty(who, "other_mods", otherModifiers);
+					character_class_gump( who );
+					break;
+			endcase
+		endif
+
+return res;
+
+endfunction
+
+
+function character_draconic_gump( who )
+var gflayout := {
+		"noclose",   // close by right-click forbidden
+		"nodispose", // you did not want to hit esc, did you? 
+		// "nomove",    // you musn't move the window around
+		"page 0",    // we initialize the first page which is the background
+
+    "gumppic 210, 100, 11265", // the background image 1
+    "gumppic 410, 100, 11264", // the background image 2
+    "gumppic 1080, 100, 11265", // the background image 3
+    "htmlgump 633 110 300 30 0 0 0", // welcome adventurer
+    "resizepic 530 240 9300 429 395", // the paper background
+    "gumppic 1100, 130, 1634", // the side image 1
+    "gumppic 230, 130, 1632", //the side image 2
+		"text 682 165 5 1", // Choose your fate
+
+    "page 1",
+		"text 686 250 36 2", // Choose your Draconic Ancestry
+		"text 610 305 56 3", // 
+		"text 610 335 56 4", // 
+		"text 610 365 56 5", // 
+		"text 610 395 56 6", // 
+		"text 610 425 56 7", // 
+		"text 610 455 56 8", // 
+		"text 610 485 56 9", // 
+		"text 610 515 56 10", // 
+		"text 610 545 56 11", // 
+		"text 610 575 56 12", // 
+
+		"button 860 600 12009 12010 1 0 2", // the next page button
+		"button 760 600 12015 12016 1 0 1", // the previous page button
+
+    "radio 580 305 210 211 1 3", // 
+    "radio 580 335 210 211 0 4", // 
+    "radio 580 365 210 211 0 5", // 
+    "radio 580 395 210 211 0 6", // 
+    "radio 580 425 210 211 0 7", // 
+    "radio 580 455 210 211 0 8", // 
+    "radio 580 485 210 211 0 9", // 
+    "radio 580 515 210 211 0 10", // 
+    "radio 580 545 210 211 0 11", // 
+    "radio 580 575 210 211 0 12"  // 
+
+		};
+
+
+  var gfdata := {
+    "<BASEFONT COLOR=\"#FFFFFF\" SIZE=\"5\">WELCOME ADVENTURER",
+    "CHOOSE YOUR FATE",
+		"Choose your Draconic Ancestry",
+		"Black",
+		"Blue",
+		"Brass",
+		"Bronze",
+		"Copper",
+		"Gold",
+		"Green",
+		"Red",
+		"Silver",
+		"White"
+		};
+
+	var res := SendDialogGump( who, gflayout, gfdata);
+	var subrace;
+
+  foreach key in (res.keys)
+		if (key != 0 )
+						subrace := key;
+		endif
+  endforeach
+
+	case(subrace)
+		3: 
+			subrace := "Black";
+			break;
+		4: 
+			subrace := "Blue";
+			break;
+		5: 
+			subrace := "Brass";
+			break;
+		6: 
+			subrace := "Bronze";
+			break;
+		7: 
+			subrace := "Copper";
+			break;
+		8: 
+			subrace := "Gold";
+			break;
+		9: 
+			subrace := "Green";
+			break;
+		10: 
+			subrace := "Red";
+			break;
+		11: 
+			subrace := "Silver";
+			break;
+		12: 
+			subrace := "White";
+			break;			
+
+	endcase
+
+		if (res[0] == 2)
+			SetObjProperty(who, "subrace", subrace);
+			AssignRaceModifiers(GetObjProperty(who, "race"), subrace);
+			SetObjProperty(who, "race_mods", raceModifiers);
+			SetObjProperty(who, "other_mods", otherModifiers);
+			character_class_gump( who );
+		elseif (res[0] == 1)
+		  character_race_gump( who );
+		endif
+
+return res;
+endfunction
+
+function character_dwarf_gump( who )
+var gflayout := {
+		"noclose",   // close by right-click forbidden
+		"nodispose", // you did not want to hit esc, did you? 
+		// "nomove",    // you musn't move the window around
+		"page 0",    // we initialize the first page which is the background
+
+    "gumppic 210, 100, 11265", // the background image 1
+    "gumppic 410, 100, 11264", // the background image 2
+    "gumppic 1080, 100, 11265", // the background image 3
+    "htmlgump 633 110 300 30 0 0 0", // welcome adventurer
+    "resizepic 530 240 9300 429 395", // the paper background
+    "gumppic 1100, 130, 1634", // the side image 1
+    "gumppic 230, 130, 1632", //the side image 2
+		"text 682 165 5 1", // Choose your fate
+
+    "page 1",
+		"text 686 250 36 2", // 
+		"text 610 305 56 3", // 
+		"text 610 335 56 4", // 
+
+		"button 860 600 12009 12010 1 0 2", // the next page button
+		"button 760 600 12015 12016 1 0 1", // the previous page button
+
+    "radio 580 305 210 211 1 3", // 
+    "radio 580 335 210 211 0 4"
+		};
+
+
+  var gfdata := {
+    "<BASEFONT COLOR=\"#FFFFFF\" SIZE=\"5\">WELCOME ADVENTURER",
+    "CHOOSE YOUR FATE",
+		"Choose your Subrace",
+		"Hill Dwarf",
+		"Mountain Dwarf"
+		};
+
+	var res := SendDialogGump( who, gflayout, gfdata);
+	var subrace;
+
+  foreach key in (res.keys)
+		if (key != 0 )
+						subrace := key;
+		endif
+  endforeach
+
+	case(subrace)
+		3: 
+			subrace := "Hill Dwarf";
+			break;
+		4: 
+			subrace := "Mountain Dwarf";
+			break;
+	endcase
+
+		if (res[0] == 2)
+			SetObjProperty(who, "subrace", subrace);
+			AssignRaceModifiers(GetObjProperty(who, "race"), subrace);
+			SetObjProperty(who, "race_mods", raceModifiers);
+			SetObjProperty(who, "other_mods", otherModifiers);
+
+			character_class_gump( who );
+		elseif (res[0] == 1)
+		  character_race_gump( who );
+		endif
+
+return res;
+
+endfunction
+
+function character_elf_gump( who )
+var gflayout := {
+		"noclose",   // close by right-click forbidden
+		"nodispose", // you did not want to hit esc, did you? 
+		// "nomove",    // you musn't move the window around
+		"page 0",    // we initialize the first page which is the background
+
+    "gumppic 210, 100, 11265", // the background image 1
+    "gumppic 410, 100, 11264", // the background image 2
+    "gumppic 1080, 100, 11265", // the background image 3
+    "htmlgump 633 110 300 30 0 0 0", // welcome adventurer
+    "resizepic 530 240 9300 429 395", // the paper background
+    "gumppic 1100, 130, 1634", // the side image 1
+    "gumppic 230, 130, 1632", //the side image 2
+		"text 682 165 5 1", // Choose your fate
+
+    "page 1",
+		"text 686 250 36 2", // 
+		"text 610 305 56 3", // 
+		"text 610 335 56 4", // 
+
+		"button 860 600 12009 12010 1 0 2", // the next page button
+		"button 760 600 12015 12016 1 0 1", // the previous page button
+
+    "radio 580 305 210 211 1 3", // 
+    "radio 580 335 210 211 0 4"
+		};
+
+
+  var gfdata := {
+    "<BASEFONT COLOR=\"#FFFFFF\" SIZE=\"5\">WELCOME ADVENTURER",
+    "CHOOSE YOUR FATE",
+		"Choose your Subrace",
+		"High Elf",
+		"Wood Elf"
+		};
+
+	var res := SendDialogGump( who, gflayout, gfdata);
+	var subrace;
+
+  foreach key in (res.keys)
+		if (key != 0 )
+						subrace := key;
+		endif
+  endforeach
+
+	case(subrace)
+		3: 
+			subrace := "High Elf";
+			break;
+		4: 
+			subrace := "Wood Elf";
+			break;
+	endcase
+
+		if (res[0] == 2)
+			SetObjProperty(who, "subrace", subrace);
+			AssignRaceModifiers(GetObjProperty(who, "race"), subrace);
+			SetObjProperty(who, "race_mods", raceModifiers);
+			SetObjProperty(who, "other_mods", otherModifiers);
+			character_class_gump( who );
+		elseif (res[0] == 1)
+		  character_race_gump( who );
+		endif
+
+return res;
+
+endfunction
+
+function character_gnome_gump( who )
+var gflayout := {
+		"noclose",   // close by right-click forbidden
+		"nodispose", // you did not want to hit esc, did you? 
+		// "nomove",    // you musn't move the window around
+		"page 0",    // we initialize the first page which is the background
+
+    "gumppic 210, 100, 11265", // the background image 1
+    "gumppic 410, 100, 11264", // the background image 2
+    "gumppic 1080, 100, 11265", // the background image 3
+    "htmlgump 633 110 300 30 0 0 0", // welcome adventurer
+    "resizepic 530 240 9300 429 395", // the paper background
+    "gumppic 1100, 130, 1634", // the side image 1
+    "gumppic 230, 130, 1632", //the side image 2
+		"text 682 165 5 1", // Choose your fate
+
+    "page 1",
+		"text 686 250 36 2", // 
+		"text 610 305 56 3", // 
+		"text 610 335 56 4", // 
+
+
+		"button 860 600 12009 12010 1 0 2", // the next page button
+		"button 760 600 12015 12016 1 0 1", // the previous page button
+
+    "radio 580 305 210 211 1 3", // 
+    "radio 580 335 210 211 0 4"
+		};
+
+
+  var gfdata := {
+    "<BASEFONT COLOR=\"#FFFFFF\" SIZE=\"5\">WELCOME ADVENTURER",
+    "CHOOSE YOUR FATE",
+		"Choose your Subrace",
+		"Deep Gnome",
+		"Rock Gnome"
+		};
+
+	var res := SendDialogGump( who, gflayout, gfdata);
+	var subrace;
+
+  foreach key in (res.keys)
+		if (key != 0 )
+						subrace := key;
+		endif
+  endforeach
+
+	case(subrace)
+		3: 
+			subrace := "Deep Gnome";
+			break;
+		4: 
+			subrace := "Rock Gnome";
+			break;
+	endcase
+
+		if (res[0] == 2)
+			SetObjProperty(who, "subrace", subrace);
+			AssignRaceModifiers(GetObjProperty(who, "race"), subrace);
+			SetObjProperty(who, "race_mods", raceModifiers);
+			SetObjProperty(who, "other_mods", otherModifiers);
+			character_class_gump( who );
+		elseif (res[0] == 1)
+		  character_race_gump( who );
+		endif
+
+return res;
+
+endfunction
+
+function character_halfling_gump( who )
+var gflayout := {
+		"noclose",   // close by right-click forbidden
+		"nodispose", // you did not want to hit esc, did you? 
+		// "nomove",    // you musn't move the window around
+		"page 0",    // we initialize the first page which is the background
+
+    "gumppic 210, 100, 11265", // the background image 1
+    "gumppic 410, 100, 11264", // the background image 2
+    "gumppic 1080, 100, 11265", // the background image 3
+    "htmlgump 633 110 300 30 0 0 0", // welcome adventurer
+    "resizepic 530 240 9300 429 395", // the paper background
+    "gumppic 1100, 130, 1634", // the side image 1
+    "gumppic 230, 130, 1632", //the side image 2
+		"text 682 165 5 1", // Choose your fate
+
+    "page 1",
+		"text 686 250 36 2", // Choose your Draconic Ancestry
+		"text 610 305 56 3", // 
+		"text 610 335 56 4", // 
+
+		"button 860 600 12009 12010 1 0 2", // the next page button
+		"button 760 600 12015 12016 1 0 1", // the previous page button
+
+    "radio 580 305 210 211 1 3", // 
+    "radio 580 335 210 211 0 4"
+		};
+
+
+  var gfdata := {
+    "<BASEFONT COLOR=\"#FFFFFF\" SIZE=\"5\">WELCOME ADVENTURER",
+    "CHOOSE YOUR FATE",
+		"Choose your Subrace",
+		"Lightfoot Halfling",
+		"Stout Halfling"
+		};
+
+	var res := SendDialogGump( who, gflayout, gfdata);
+	var subrace;
+
+  foreach key in (res.keys)
+		if (key != 0 )
+						subrace := key;
+		endif
+  endforeach
+
+	case(subrace)
+		3: 
+			subrace := "Lightfoot Halfling";
+			break;
+		4: 
+			subrace := "Stout Halfling";
+			break;
+	endcase
+
+		if (res[0] == 2)
+			SetObjProperty(who, "subrace", subrace);
+			AssignRaceModifiers(GetObjProperty(who, "race"), subrace);
+			SetObjProperty(who, "race_mods", raceModifiers);
+			SetObjProperty(who, "other_mods", otherModifiers);
+			character_class_gump( who );
+		elseif (res[0] == 1)
+		  character_race_gump( who );
+		endif
+
+return res;
+
+endfunction
+
+
+function character_class_gump( who )
+var gflayout := {
+		"noclose",   // close by right-click forbidden
+		"nodispose", // you did not want to hit esc, did you? 
+		// "nomove",    // you musn't move the window around
+		"page 0",    // we initialize the first page which is the background
+
+    "gumppic 210, 100, 11265", // the background image 1
+    "gumppic 410, 100, 11264", // the background image 2
+    "gumppic 1080, 100, 11265", // the background image 3
+    "htmlgump 633 110 300 30 0 0 0", // welcome adventurer
+    "resizepic 530 240 9300 429 395", // the paper background
+    "gumppic 1100, 130, 1634", // the side image 1
+    "gumppic 230, 130, 1632", //the side image 2
+
+		"text 682 165 5 1", // Choose your fate
+
+    "page 1",
+		"text 686 250 36 2", // Choose your Class
+		"text 610 270 56 3", // Barbarian
+		"text 610 300 56 4", // Bard
+		"text 610 330 56 5", // Cleric
+		"text 610 360 56 6", // Druid
+		"text 610 390 56 7", // Fighter
+		"text 610 420 56 8", // Monk
+		"text 610 450 56 9", // Paladin
+		"text 610 480 56 10", // Ranger
+		"text 610 510 56 11", // Rogue
+		"text 610 540 56 12", // Sorcerer
+		"text 610 570 56 13", // Warlock
+		"text 610 600 56 14", // Wizard
+
+    "resizepic 770 360 1460 150 152", // the class image background
+    "gumppic 790, 380, 2744", // the class image
+		"button 860 600 12009 12010 1 0 2", // the next page button
+		"button 760 600 12015 12016 1 0 1", // the previous page button
+				
+    "radio 580 270 210 211 1 1", // Barbarian
+    "radio 580 300 210 211 0 2", // Bard
+    "radio 580 330 210 211 0 3", // Cleric
+    "radio 580 360 210 211 0 4", // Druid
+    "radio 580 390 210 211 0 5", // Fighter
+    "radio 580 420 210 211 0 6", // Monk
+    "radio 580 450 210 211 0 7", // Paladin
+    "radio 580 480 210 211 0 8", // Ranger
+    "radio 580 510 210 211 0 9",  // Rogue
+    "radio 580 540 210 211 0 10",  // Sorcerer
+    "radio 580 570 210 211 0 11",  // Warlock
+    "radio 580 600 210 211 0 12"  // Wizard
+
+		};
+
+
+  var gfdata := {
+    "<BASEFONT COLOR=\"#FFFFFF\" SIZE=\"5\">WELCOME ADVENTURER",
+    "CHOOSE YOUR FATE",
+		"Choose your Class",
+		"Barbarian",
+		"Bard",
+		"Cleric",
+		"Druid",
+		"Fighter",
+		"Monk",
+		"Paladin",
+		"Ranger",
+		"Rogue",
+		"Sorcerer",
+		"Warlock",
+		"Wizard"
+		};
+
+
+
+	var res := SendDialogGump( who, gflayout, gfdata);
+
+var class;
+
+  foreach key in (res.keys)
+		if (key != 0 )
+				class := key;
+		endif
+  endforeach
+
+	case(class)
+		1: 
+			class := "Barbarian";
+			break;
+		2: 
+			class := "Bard";
+			break;
+		3: 
+			class := "Cleric";
+			break;
+		4: 
+			class := "Druid";
+			break;
+		5: 
+			class := "Fighter";
+			break;
+		6: 
+			class := "Monk";
+			break;
+		7: 
+			class := "Paladin";
+			break;
+		8: 
+			class := "Ranger";
+			break;
+		9: 
+			class := "Rogue";
+			break;
+		10: 
+			class := "Sorcerer";
+			break;
+		11: 
+			class := "Warlock";
+			break;
+		12: 
+			class := "Wizard";
+			break;
+	endcase
+
+		if (res[0] == 1)
+			character_race_gump( who );
+		else
+			SetObjProperty(who, "class", class);
+			//SendSysMessage(who, "Your class is now: "+ GetObjProperty(who , "class" ));
+			DistributeBaseValues(class);
+			character_abilities_gump( who );
+		endif
+	
+	return res;
+
+endfunction
+
+function character_abilities_gump ( who )
+RecalculateTotals();
+	var gflayout := {
+			"noclose",   // close by right-click forbidden
+			"nodispose", // you did not want to hit esc, did you? 
+			// "nomove",    // you musn't move the window around
+			"page 0",    // we initialize the first page which is the background
+
+			"gumppic 210, 100, 11265", // the background image 1
+			"gumppic 410, 100, 11264", // the background image 2
+			"gumppic 1080, 100, 11265", // the background image 3
+			"htmlgump 633 110 300 30 0 0 0", // welcome adventurer
+			"resizepic 530 240 9300 429 395", // the paper background
+			"gumppic 1100, 130, 1634", // the side image 1
+			"gumppic 230, 130, 1632", //the side image 2
+
+			"text 682 165 5 1", // Choose your fate
+
+			"page 1",
+			"text 686 250 36 2", // Choose your Class
+
+			"text 560 280 56 3", // STR
+			"text 628 280 56 4", // DEX
+			"text 696 280 56 5", // CON
+			"text 764 280 56 6", // INT
+			"text 832 280 56 7", // WIS
+			"text 900 280 56 8", // CHA
+
+			"text 560 300 928 9", // base
+			"text 628 300 928 9", // base
+			"text 696 300 928 9", // base
+			"text 764 300 928 9", // base
+			"text 832 300 928 9", // base
+			"text 900 300 928 9", // base
+
+			"text 568 320 41 10", 
+			"text 636 320 41 11", 
+			"text 704 320 41 12", 
+			"text 772 320 41 13", 
+			"text 840 320 41 14", 
+			"text 908 320 41 15", 
+
+				// MINUS ARE MULTIPLES OF 7
+			// PLUS ARE MULTIPLES OF 9
+			"button 550 345 9910 9911 1 0 7",
+			"button 578 345 9904 9905 1 0 9",
+			"button 620 345 9910 9911 1 0 14",
+			"button 646 345 9904 9905 1 0 18",
+			"button 685 345 9910 9911 1 0 21",
+			"button 713 345 9904 9905 1 0 27",
+			"button 752 345 9910 9911 1 0 28",
+			"button 780 345 9904 9905 1 0 36",
+			"button 820 345 9910 9911 1 0 35",
+			"button 848 345 9904 9905 1 0 45",
+			"button 890 345 9910 9911 1 0 42",
+			"button 918 345 9904 9905 1 0 54",
+
+      // +
+			"text 570 370 928 16", 
+			"text 638 370 928 16",
+			"text 706 370 928 16",
+			"text 774 370 928 16",
+			"text 842 370 928 16",
+			"text 910 370 928 16",
+
+			// race
+
+			"text 560 387 130 17", 
+			"text 628 387 130 17", 
+			"text 696 387 130 17", 
+			"text 764 387 130 17",
+			"text 832 387 130 17", 
+			"text 900 387 130 17",
+
+			// race modifiers
+			"text 570 410 41 18", 
+			"text 638 410 41 19", 
+			"text 706 410 41 20", 
+			"text 774 410 41 21", 
+			"text 842 410 41 22", 
+			"text 910 410 41 23", 
+
+      // +
+			"text 570 430 928 16", 
+			"text 638 430 928 16",
+			"text 706 430 928 16",
+			"text 774 430 928 16",
+			"text 842 430 928 16",
+			"text 910 430 928 16",
+
+			// other
+			"text 560 450 130 24", 
+			"text 628 450 130 24", 
+			"text 696 450 130 24", 
+			"text 764 450 130 24",
+			"text 832 450 130 24", 
+			"text 900 450 130 24",
+
+			// other modifiers
+			"text 570 470 41 25", 
+			"text 638 470 41 26", 
+			"text 706 470 41 27", 
+			"text 774 470 41 28", 
+			"text 842 470 41 29", 
+			"text 910 470 41 30", 
+
+			// =
+			"text 570 490 928 31", 
+			"text 638 490 928 31",
+			"text 706 490 928 31",
+			"text 774 490 928 31",
+			"text 842 490 928 31",
+			"text 910 490 928 31",
+
+			// total
+			"text 560 510 130 32", 
+			"text 628 510 130 32", 
+			"text 696 510 130 32", 
+			"text 764 510 130 32",
+			"text 832 510 130 32", 
+			"text 900 510 130 32",
+
+			// totalvalues
+			"text 570 530 41 33", 
+			"text 638 530 41 34", 
+			"text 706 530 41 35", 
+			"text 774 530 41 36", 
+			"text 842 530 41 37", 
+			"text 910 530 41 38", 
+
+			// mod
+			"text 560 550 130 39", 
+			"text 628 550 130 39", 
+			"text 696 550 130 39", 
+			"text 764 550 130 39",
+			"text 832 550 130 39", 
+			"text 900 550 130 39",
+
+			// modvalues
+			"text 570 570 41 40", 
+			"text 638 570 41 41", 
+			"text 706 570 41 42", 
+			"text 774 570 41 43", 
+			"text 842 570 41 44", 
+			"text 910 570 41 45", 
+
+			// Remaining points
+			"text 700 680 56 46", 		
+
+			// Special message
+			"text 650 710 130 47", 		
+			
+			"button 860 600 12009 12010 1 0 2", // the next page button
+			"button 760 600 12015 12016 1 0 1" // the previous page button
+	};	
+
+
+
+  var gfdata := {
+    "<BASEFONT COLOR=\"#FFFFFF\" SIZE=\"5\">WELCOME ADVENTURER",
+    "CHOOSE YOUR FATE",
+		"Choose your Abilities",
+		"STR",
+		"DEX",
+		"CON",
+		"INT",
+		"WIS",
+		"CHA",
+		"base",
+		baseValues["STR"],
+		baseValues["DEX"],
+		baseValues["CON"],
+		baseValues["INT"],
+		baseValues["WIS"],
+		baseValues["CHA"],
+		"+",
+		"race",
+		raceModifiers["STR"],
+		raceModifiers["DEX"],
+		raceModifiers["CON"],
+		raceModifiers["INT"],
+		raceModifiers["WIS"],
+		raceModifiers["CHA"],
+		"other",
+		otherModifiers["STR"],
+		otherModifiers["DEX"],
+		otherModifiers["CON"],
+		otherModifiers["INT"],
+		otherModifiers["WIS"],
+		otherModifiers["CHA"],
+		"=",
+		"total",
+		totalValues["STR"],
+		totalValues["DEX"],
+		totalValues["CON"],
+		totalValues["INT"],
+		totalValues["WIS"],
+		totalValues["CHA"],
+		"mod",
+		finalModifiers["STR"],
+		finalModifiers["DEX"],
+		finalModifiers["CON"],
+		finalModifiers["INT"],
+		finalModifiers["WIS"],						
+		finalModifiers["CHA"],
+		"Remaining points: " + CalculateRemainingPoints(),
+		specialMessage
+		};
+
+	var res := SendDialogGump( who, gflayout, gfdata);
+	case(res[0])
+
+		1:
+			character_class_gump( who );
+			break;
+
+		2:
+			is_complete := 1;
+			SetObjProperty(who, "abilities", baseValues);
+			SetObjProperty(who, "race_mods", raceModifiers);
+			break;
+
+		7: 14: 21: 28: 35: 42:
+			AdjustAbilityScore(res[0]/7, -1);
+			break;
+
+		9: 18: 27: 36: 45: 54:
+		  AdjustAbilityScore(res[0]/9, 1);
+			break;
+
+		default:
+			break;
+
+	endcase
+	
+endfunction
+
+
+
+function character_alignment_gump( who )
+var gflayout := {
+		"noclose",   // close by right-click forbidden
+		"nodispose", // you did not want to hit esc, did you? 
+		// "nomove",    // you musn't move the window around
+		"page 0",    // we initialize the first page which is the background
+
+    "gumppic 210, 100, 11265", // the background image 1
+    "gumppic 410, 100, 11264", // the background image 2
+    "gumppic 1080, 100, 11265", // the background image 3
+    "htmlgump 633 110 300 30 0 0 0", // welcome adventurer
+    "resizepic 530 240 9300 429 395", // the paper background
+    "gumppic 1100, 130, 1634", // the side image 1
+    "gumppic 230, 130, 1632", //the side image 2
+		"text 682 165 5 1", // Choose your fate
+
+    "page 1",
+		"text 686 250 36 2", // 
+		"text 610 305 56 3", // 
+		"text 610 335 56 4", // 
+		"text 610 365 56 5", // 
+		"text 610 395 56 6", // 
+		"text 610 425 56 7", // 
+		"text 610 455 56 8", // 
+		"text 610 485 56 9", // 
+		"text 610 515 56 10", // 
+		"text 610 545 56 11", // 
+    "resizepic 770 360 1460 150 152", // the race image background
+    "gumppic 790, 380, 2731", // the race image
+		"button 860 600 12009 12010 1 0 2", // the next page button
+		"button 760 600 12015 12016 1 0 1", // the previous page button
+
+
+    "radio 580 305 210 211 1 1", // 
+    "radio 580 335 210 211 0 2", // 
+    "radio 580 365 210 211 0 3", // 
+    "radio 580 395 210 211 0 4", // 
+    "radio 580 425 210 211 0 5", // 
+    "radio 580 455 210 211 0 6", // 
+    "radio 580 485 210 211 0 7", // 
+    "radio 580 515 210 211 0 8", // 
+    "radio 580 545 210 211 0 9"  // 
+
+		};
+
+
+  var gfdata := {
+    "<BASEFONT COLOR=\"#FFFFFF\" SIZE=\"5\">WELCOME ADVENTURER",
+    "CHOOSE YOUR FATE",
+		"Choose your Alignment",
+		"Chaotic Evil",
+		"Chaotic Neutral",
+		"Chaotic Good",
+		"Neutral Evil",
+		"Neutral",
+		"Neutral Good",
+		"Lawful Evil",
+		"Lawful Neutral",
+		"Lawful Good"
+		};
+
+	var res := SendDialogGump( who, gflayout, gfdata);
+	var alignment;
+
+  foreach key in (res.keys)
+		if (key != 0 )
+					alignment := key;
+		endif
+  endforeach
+
+	case(alignment)
+		1: 
+			alignment := "Chaotic Evil";
+			break;
+		2: 
+			alignment := "Chaotic Neutral";
+			break;
+		3: 
+			alignment := "Chaotic Good";
+			break;
+		4: 
+			alignment := "Neutral Evil";
+			break;
+		5: 
+			alignment := "Neutral";
+			break;
+		6: 
+			alignment := "Neutral Good";
+			break;
+		7: 
+			alignment := "Lawful Evil";
+			break;
+		8: 
+			alignment := "Lawful Neutral";
+			break;
+		9: 
+			alignment := "Lawful Good";
+			break;
+
+	endcase
+
+		if (res[0] == 2)
+			SetObjProperty(who, "alignment", alignment);
+			character_background_gump( who );
+		else
+		  is_complete := 0;
+		endif
+
+return res;
+
+endfunction
+
+
+
+function character_background_gump( who )
+var gflayout := {
+		"noclose",   // close by right-click forbidden
+		"nodispose", // you did not want to hit esc, did you? 
+		// "nomove",    // you musn't move the window around
+		"page 0",    // we initialize the first page which is the background
+
+    "gumppic 210, 100, 11265", // the background image 1
+    "gumppic 410, 100, 11264", // the background image 2
+    "gumppic 1080, 100, 11265", // the background image 3
+    "htmlgump 633 110 300 30 0 0 0", // welcome adventurer
+    "resizepic 530 240 9300 429 395", // the paper background
+    "gumppic 1100, 130, 1634", // the side image 1
+    "gumppic 230, 130, 1632", //the side image 2
+
+		"text 682 165 5 1", // Choose your fate
+
+    "page 1",
+		"text 686 250 36 2", // 
+		"text 610 270 56 3", // 
+		"text 610 297 56 4", // 
+		"text 610 324 56 5", // 
+		"text 610 351 56 6", // 
+		"text 610 378 56 7", // 
+		"text 610 405 56 8", // 
+		"text 610 432 56 9", // 
+		"text 610 459 56 10", // 
+		"text 610 486 56 11", // 
+		"text 610 513 56 12", // 
+		"text 610 540 56 13", // 
+		"text 610 567 56 14", // 
+		"text 610 594 56 15", // 
+
+    "resizepic 770 360 1460 150 152", // the  image background
+    "gumppic 790, 380, 2744", // the  image
+		"button 860 600 12009 12010 1 0 2", // the next page button
+		"button 760 600 12015 12016 1 0 1", // the previous page button
+				
+    "radio 580 270 210 211 1 1", // 
+    "radio 580 297 210 211 0 2", // 
+    "radio 580 324 210 211 0 3", // 
+    "radio 580 351 210 211 0 4", // 
+    "radio 580 378 210 211 0 5", // 
+    "radio 580 405 210 211 0 6", // 
+    "radio 580 432 210 211 0 7", // 
+    "radio 580 459 210 211 0 8", // 
+    "radio 580 486 210 211 0 9",  // 
+    "radio 580 513 210 211 0 10",  // 
+    "radio 580 540 210 211 0 11",  // 
+    "radio 580 567 210 211 0 12",  // 
+    "radio 580 594 210 211 0 13"  // 
+
+		};
+
+
+  var gfdata := {
+    "<BASEFONT COLOR=\"#FFFFFF\" SIZE=\"5\">WELCOME ADVENTURER",
+    "CHOOSE YOUR FATE",
+		"Choose your Background",
+		"Acolyte", 
+		"Charlatan",
+		"Criminal",
+		"Entertainer",
+		"Folk Hero",
+		"Guild Artisan",
+		"Hermit",
+		"Noble",
+		"Outlander",
+		"Sage",
+		"Sailor",
+		"Soldier",
+		"Urchin"
+		};
+
+
+
+	var res := SendDialogGump( who, gflayout, gfdata);
+
+var background;
+
+  foreach key in (res.keys)
+		if (key != 0 )
+				background := key;
+		endif
+  endforeach
+
+	case(background)
+		1: 
+			background := "Acolyte";
+			break;
+		2: 
+			background := "Charlatan";
+			break;
+		3: 
+			background := "Criminal";
+			break;
+		4: 
+			background := "Entertainer";
+			break;
+		5: 
+			background := "Folk Hero";
+			break;
+		6: 
+			background := "Guild Artisan";
+			break;
+		7: 
+			background := "Hermit";
+			break;
+		8: 
+			background := "Noble";
+			break;
+		9: 
+			background := "Outlander";
+			break;
+		10: 
+			background := "Sage";
+			break;
+		11: 
+			background := "Sailor";
+			break;
+		12: 
+			background := "Soldier";
+			break;
+		13: 
+			background := "Urchin";
+			break;
+	endcase
+
+		if (res[0] == 1)
+			character_alignment_gump( who );
+		else
+			SetObjProperty(who, "background", background);
+		endif
+	
+	return res;
+
+endfunction
+
+
+
+program character_creation( who ) 
+
+  var res :=  character_race_gump( who );
+
+	repeat
+		
+		while(!is_complete)
+			character_abilities_gump ( who );
+		endwhile
+		
+		character_alignment_gump( who );
+	until (is_complete);
+endprogram
+
